@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect } from "react";
 import ChatBottomBar from "./ChatBottomBar";
 import MessageList from "./MessageList";
@@ -14,7 +16,7 @@ const MessageContainer = () => {
     };
 
     useEffect(() => {
-        document.addEventListener("keydown", (e) => handleEscape);
+        document.addEventListener("keydown", handleEscape);
         return () => {
             document.removeEventListener("keydown", handleEscape);
         };
