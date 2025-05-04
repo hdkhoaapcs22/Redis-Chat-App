@@ -1,4 +1,4 @@
-import { User, USERS } from "@/db/dummy";
+import { User } from "@/db/types";
 import { ScrollArea } from "./ui/scroll-area";
 import {
     Tooltip,
@@ -11,7 +11,6 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import useSound from "use-sound";
 import { usePreferences } from "@/store/usePreferences";
-import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { useSelectedUser } from "@/store/useSelectedUser";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";

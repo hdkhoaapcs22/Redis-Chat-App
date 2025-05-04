@@ -1,9 +1,13 @@
 "use server";
 
-import { Message } from "@/db/dummy";
 import { redis } from "@/lib/db";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { pusherServer } from "@/lib/pusher";
+import { connectDb } from "@/lib/db";
+
+import ConversationModel from "@/models/conversation";
+import MessageModel from "@/models/message";
+import { Message } from "@/db/types";
 
 type SendMessageActionArgs = {
     content: string;
@@ -18,7 +22,6 @@ export async function sendMessageAction({
 }: SendMessageActionArgs) {
     const { getUser } = getKindeServerSession();
     const user = await getUser();
-
     if (!user) return { success: false, message: "User not authenticated" };
 
     const senderId = user.id;
@@ -27,36 +30,39 @@ export async function sendMessageAction({
         .sort()
         .join(":")}`;
 
-    // the issue with this has been explained in the tutorial, we need to sort the ids to make sure the conversation id is always the same
-    // john, jane
-    // 123,  456
-
-    // john sends a message to jane
-    // senderId: 123, receiverId: 456
-    // `conversation:123:456`
-
-    // jane sends a message to john
-    // senderId: 456, receiverId: 123
-    // conversation:456:123
-
-    // Generate a unique message id
     const messageId = `message:${Date.now()}:${Math.random()
         .toString(36)
         .substring(2, 9)}`;
     const timestamp = Date.now();
 
-    // Create the message hash
-    await redis.hset(messageId, {
+    const conversationExist = await ConversationModel.findOne({
+        _id: conversationId,
+    });
+    if (conversationExist) {
+        await ConversationModel.updateOne(
+            { _id: conversationId },
+            { $push: { messageIds: messageId } }
+        );
+    } else {
+        const incomingConversation = new ConversationModel({
+            _id: conversationId,
+            senderId,
+            receiverId,
+            messageIds: [messageId],
+        });
+
+        await incomingConversation.save();
+    }
+    const incomingMessage = new MessageModel({
+        _id: messageId,
         senderId,
+        receiverId,
         content,
         timestamp,
         messageType,
     });
 
-    await redis.zadd(`${conversationId}:messages`, {
-        score: timestamp,
-        member: JSON.stringify(messageId),
-    });
+    await incomingMessage.save();
 
     const channelName = `${senderId}__${receiverId}`
         .split("__")
@@ -67,6 +73,21 @@ export async function sendMessageAction({
         message: { senderId, content, timestamp, messageType },
     });
 
+    await redis.zadd(`${conversationId}:messages`, {
+        score: timestamp,
+        member: JSON.stringify(messageId),
+    });
+    await redis.zremrangebyrank(`${conversationId}:messages`, 0, -201);
+
+    await redis.hset(messageId, {
+        senderId,
+        content,
+        timestamp,
+        messageType,
+        reaction: "",
+    });
+    await redis.expire(messageId, 60 * 5);
+
     return { success: true, conversationId, messageId };
 }
 
@@ -74,18 +95,84 @@ export async function getMessage(
     selectedUserId: string,
     currentUserId: string
 ) {
-    // conversation:kp_87f4a115d5f34587940cdee58885a58b:kp_a6bc2324e26548fcb5c19798f6459814:messages
+    console.log("GetMESSAGE IS CREATED");
+    const conversationId =
+        `conversation:${[selectedUserId, currentUserId].sort().join(":")}` +
+        ":messages";
 
+    const existConversation = await redis.exists(conversationId);
+    if (!existConversation) return [];
+
+    const messageIds = await redis.zrange(conversationId, 0, -1);
+
+    const pipeline = redis.pipeline();
+    messageIds.forEach((id) => pipeline.hgetall(id as string));
+    const results = (await pipeline.exec()) as Message[];
+    const messages = await Promise.all(
+        results.map(async (result, index) => {
+            if (!result || Object.keys(result).length === 0) {
+                // Redis không có message, fallback sang MongoDB
+                const mongoMsg = await MessageModel.findOne({
+                    _id: messageIds[index],
+                }).lean<Message>();
+                if (mongoMsg) {
+                    return {
+                        senderId: mongoMsg.senderId,
+                        content: mongoMsg.content,
+                        timestamp: mongoMsg.timestamp,
+                        messageType: mongoMsg.messageType,
+                        reaction: mongoMsg.reaction,
+                    };
+                } else {
+                    return null; // Không tồn tại trong Redis lẫn MongoDB
+                }
+            } else {
+                // Redis trả về message hợp lệ
+                return {
+                    senderId: result.senderId,
+                    content: result.content,
+                    timestamp: result.timestamp,
+                    messageType: result.messageType,
+                    reaction: result.reaction,
+                };
+            }
+        })
+    );
+    return messages.filter((msg) => msg !== null);
+
+    // console.log("results: ", typeof results, results);
+
+    // Lọc các message null (không còn trong cả Redis lẫn MongoDB)
+    // return messages.filter((msg) => msg !== null);
+    // return [];
+}
+
+export async function getOlderMessages({
+    selectedUserId,
+    currentUserId,
+    beforeTimestamp,
+    limit = 50,
+}: {
+    selectedUserId: string;
+    currentUserId: string;
+    beforeTimestamp: number;
+    limit?: number;
+}) {
     const conversationId = `conversation:${[selectedUserId, currentUserId]
         .sort()
         .join(":")}`;
-    const messageIds = await redis.zrange(`${conversationId}:messages`, 0, -1);
 
-    if (messageIds.length === 0) return [];
+    const conversation = await ConversationModel.findOne({
+        _id: conversationId,
+    });
+    if (!conversation || !conversation.messageIds) return [];
 
-    const pipeline = redis.pipeline();
-    messageIds.forEach((messageId) => pipeline.hgetall(messageId as string));
-    const messages = (await pipeline.exec()) as Message[];
+    const messages = await MessageModel.find({
+        _id: { $in: conversation.messageIds },
+        timestamp: { $lt: beforeTimestamp },
+    })
+        .sort({ timestamp: -1 })
+        .limit(limit);
 
-    return messages;
+    return messages.reverse(); // để trả lại theo thứ tự cũ → mới
 }

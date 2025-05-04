@@ -8,14 +8,14 @@ import {
 import { cn } from "@/lib/utils";
 import Sidebar from "../Sidebar";
 import MessageContainer from "./MessageContainer";
-import { User } from "@/db/dummy";
+import { User } from "@/db/types";
 import { useSelectedUser } from "@/store/useSelectedUser";
 
 interface ChatLayoutProps {
     defaultLayout: number[] | undefined;
-    user: User[];
+    users: User[];
 }
-const ChatLayout = ({ defaultLayout = [320, 480], user }: ChatLayoutProps) => {
+const ChatLayout = ({ defaultLayout = [320, 480], users }: ChatLayoutProps) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const { selectedUser } = useSelectedUser();
@@ -67,7 +67,7 @@ const ChatLayout = ({ defaultLayout = [320, 480], user }: ChatLayoutProps) => {
                         "min-w-[80px] transition-all duration-300 ease-in-out"
                 )}
             >
-                <Sidebar isCollapsed={isCollapsed} users={user} />
+                <Sidebar isCollapsed={isCollapsed} users={users} />
             </ResizablePanel>
 
             <ResizableHandle withHandle />

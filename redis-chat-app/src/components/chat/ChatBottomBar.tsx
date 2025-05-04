@@ -18,15 +18,24 @@ import {
     DialogTitle,
 } from "../ui/dialog";
 import Image from "next/image";
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { Message } from "@/db/dummy";
+import { KindeUser, useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { Message, User } from "@/db/types";
 import { pusherClient } from "@/lib/pusher";
 
-const ChatBottomBar = () => {
+type ChatBottomBar = {
+    isMessagesLoading: boolean;
+    selectedUser: User;
+    currentUser: KindeUser;
+};
+
+const ChatBottomBar = ({
+    isMessagesLoading,
+    selectedUser,
+    currentUser,
+}: ChatBottomBar) => {
     const [message, setMessage] = useState("");
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const [imageUrl, setImageUrl] = useState("");
-    const { user: currentUser } = useKindeBrowserClient();
     const queryClient = useQueryClient();
 
     const [playSound1] = useSound("/sounds/keystroke1.mp3");
@@ -36,7 +45,6 @@ const ChatBottomBar = () => {
     const [playNotificationSound] = useSound("/sounds/notification.mp3");
 
     const { soundEnabled } = usePreferences();
-    const { selectedUser } = useSelectedUser();
 
     const playSoundFunctions = [playSound1, playSound2, playSound3, playSound4];
     const { mutate: sendMessage, isPending } = useMutation({
@@ -55,7 +63,7 @@ const ChatBottomBar = () => {
         sendMessage({
             content: message,
             messageType: "text",
-            receiverId: selectedUser?.id!,
+            receiverId: selectedUser?._id!,
         });
         setMessage("");
         textAreaRef.current?.focus();
@@ -74,12 +82,12 @@ const ChatBottomBar = () => {
         sendMessage({
             content: "👍",
             messageType: "text",
-            receiverId: selectedUser?.id!,
+            receiverId: selectedUser?._id!,
         });
     };
 
     useEffect(() => {
-        const channelName = `${currentUser?.id}__${selectedUser?.id}`
+        const channelName = `${currentUser?.id}__${selectedUser?._id}`
             .split("__")
             .sort()
             .join("__");
@@ -87,10 +95,8 @@ const ChatBottomBar = () => {
 
         const handleNewMessage = (data: { message: Message }) => {
             queryClient.setQueryData(
-                ["messages", selectedUser?.id],
-                (oldMessages: Message[]) => {
-                    [...oldMessages, data.message];
-                }
+                ["messages", selectedUser?._id],
+                (oldMessages: Message[]) => [...oldMessages, data.message]
             );
 
             if (soundEnabled && data.message.senderId !== currentUser?.id) {
@@ -105,7 +111,7 @@ const ChatBottomBar = () => {
             channel?.unbind("newMessage", handleNewMessage);
             pusherClient?.unsubscribe(channelName);
         };
-    }, [currentUser?.id, selectedUser?.id]);
+    }, [currentUser?.id, selectedUser?._id]);
 
     return (
         <div className='"p-2 flex justify-between w-full items-center gap-2'>
@@ -148,12 +154,13 @@ const ChatBottomBar = () => {
 
                     <DialogFooter>
                         <Button
+                            disabled={isMessagesLoading}
                             type="submit"
                             onClick={() => {
                                 sendMessage({
                                     content: imageUrl,
                                     messageType: "image",
-                                    receiverId: selectedUser?.id!,
+                                    receiverId: selectedUser?._id!,
                                 });
                                 setImageUrl("");
                             }}
@@ -187,6 +194,7 @@ const ChatBottomBar = () => {
                         value={message}
                         ref={textAreaRef}
                         onKeyDown={handleKeyDown}
+                        disabled={isMessagesLoading}
                         onChange={(e) => {
                             setMessage(e.target.value);
                             playRandomKeyStrokeSound();
@@ -223,6 +231,7 @@ const ChatBottomBar = () => {
                         variant={"ghost"}
                         size={"icon"}
                         onClick={handleThumbsUp}
+                        disabled={isMessagesLoading}
                     >
                         {!isPending && (
                             <ThumbsUp

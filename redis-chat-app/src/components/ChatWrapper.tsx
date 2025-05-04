@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import ChatLayout from "./chat/ChatLayout";
-import { User } from "@/db/dummy";
+import { User } from "@/db/types";
 
-export default function ChatWrapper({ user }: { user: User[] }) {
+export default function ChatWrapper({ users }: { users: User[] }) {
     const [defaultLayout, setDefaultLayout] = useState<any>(undefined);
 
     useEffect(() => {
@@ -18,5 +18,5 @@ export default function ChatWrapper({ user }: { user: User[] }) {
         }
     }, []);
 
-    return <ChatLayout defaultLayout={defaultLayout} user={user} />;
+    return <ChatLayout defaultLayout={defaultLayout} users={users} />;
 }

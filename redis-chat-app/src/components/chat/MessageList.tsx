@@ -3,27 +3,25 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarImage } from "../ui/avatar";
-import { useSelectedUser } from "@/store/useSelectedUser";
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
 import { useEffect, useRef } from "react";
-import { getMessage } from "@/actions/message.action";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
+import { Message, User } from "@/db/types";
 
-const MessageList = () => {
-    const { selectedUser } = useSelectedUser();
-    const { user: currentUser, isLoading: isUserLoading } =
-        useKindeBrowserClient();
+type MessageListProps = {
+    messages: Message[];
+    isMessagesLoading: boolean;
+    currentUser: KindeUser;
+    selectedUser: User;
+};
+
+const MessageList = ({
+    messages,
+    isMessagesLoading,
+    currentUser,
+    selectedUser,
+}: MessageListProps) => {
     const messageContainerRef = useRef<HTMLDivElement>(null);
-    const { data: messages, isLoading: isMessagesLoading } = useQuery({
-        queryKey: ["messages", selectedUser?.id],
-        queryFn: async () => {
-            if (selectedUser && currentUser) {
-                return await getMessage(selectedUser?.id, currentUser?.id);
-            }
-        },
-        enabled: !!selectedUser && !!currentUser && !isUserLoading,
-    });
 
     // Scroll to the bottom of the message container when new messages are added
     useEffect(() => {
@@ -69,7 +67,7 @@ const MessageList = () => {
                             )}
                         >
                             <div className="flex gap-3 items-center">
-                                {message.senderId === selectedUser?.id && (
+                                {message.senderId === selectedUser?._id && (
                                     <Avatar className="flex justify-center items-center">
                                         <AvatarImage
                                             src={selectedUser?.image}

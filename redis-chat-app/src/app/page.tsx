@@ -1,40 +1,18 @@
 // app/page.tsx (or Home component)
 import ChatWrapper from "@/components/ChatWrapper";
 import PreferencesTab from "@/components/PreferencesTab";
-import { User } from "@/db/dummy";
-import { redis } from "@/lib/db";
+import { User } from "@/db/types";
+import connectDb from "@/lib/db";
+import UserModel from "@/models/user";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { redirect } from "next/navigation";
 
-async function getUser(): Promise<User[]> {
-    let cursor: string = "0";
-    const userKeys: string[] = [];
-    do {
-        const [nextCursor, keys] = await redis.scan(cursor, {
-            match: "user:*",
-            count: 100,
-            type: "hash",
-        });
-        cursor = nextCursor;
-        userKeys.push(...keys);
-    } while (cursor !== "0");
-
-    const users: User[] = [];
-
+async function getUsers(): Promise<User[]> {
     const { getUser } = getKindeServerSession();
     const currentUser = await getUser();
-
-    const pipeline = redis.pipeline();
-    userKeys.forEach((key) => {
-        pipeline.hgetall(key);
-    });
-    const results = (await pipeline.exec()) as User[];
-
-    for (const user of results) {
-        if (user.id !== currentUser?.id) {
-            users.push(user);
-        }
-    }
+    await connectDb();
+    const data: User[] = await UserModel.find({}).lean<User[]>();
+    const users = data.filter((user) => user._id != currentUser?.id);
     return users;
 }
 
@@ -42,7 +20,7 @@ export default async function Home() {
     const { isAuthenticated } = getKindeServerSession();
     if (!(await isAuthenticated())) return redirect("/auth");
 
-    const user = await getUser();
+    const users = await getUsers();
 
     return (
         <main className="flex h-screen flex-col items-center justify-center p-4 md:px-24 py-32 gap-4">
@@ -56,7 +34,7 @@ export default async function Home() {
             />
 
             <div className="z-10 border rounded-lg max-w-5xl w-full min-h-[85vh] text-sm lg:flex">
-                <ChatWrapper user={user} />
+                <ChatWrapper users={users} />
             </div>
         </main>
     );
