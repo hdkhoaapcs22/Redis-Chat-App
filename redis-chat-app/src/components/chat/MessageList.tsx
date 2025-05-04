@@ -9,6 +9,8 @@ import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";
 import { EllipsisVertical } from "lucide-react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { useMutation } from "@tanstack/react-query";
+import { deleteMessageAction } from "@/actions/message.action";
 
 type MessageListProps = {
     messages: Message[];
@@ -24,7 +26,7 @@ const MessageList = ({
     selectedUser,
 }: MessageListProps) => {
     const messageContainerRef = useRef<HTMLDivElement>(null);
-
+    console.log("current user: ", currentUser);
     // Scroll to the bottom of the message container when new messages are added
     useEffect(() => {
         if (messageContainerRef.current) {
@@ -36,6 +38,10 @@ const MessageList = ({
     const handleEditMessage = (message: Message) => {
         console.log("Edit:", message);
     };
+
+    const { mutate: deleteMessage, isPending } = useMutation({
+        mutationFn: deleteMessageAction,
+    });
 
     const handleDeleteMessage = (messageId: string) => {
         console.log("Delete:", messageId);
@@ -90,33 +96,10 @@ const MessageList = ({
                                         />
                                     </Avatar>
                                 )}
-                                <div className="flex items-center max-w-full group">
-                                    {message.messageType === "text" ? (
-                                        <span className="bg-accent p-3 rounded-md max-w-xs break-words">
-                                            {message.content}
-                                        </span>
-                                    ) : (
-                                        <img
-                                            src={message.content}
-                                            alt="Message Image"
-                                            className="border p-2 rounded h-40 md:h-52 object-cover"
-                                        />
-                                    )}
-
-                                    {/* Inline Action Buttons (shown on hover) */}
-                                    {message.senderId === selectedUser?._id && (
+                                {}
+                                <div className="flex items-center max-w-full group gap-1">
+                                    {message.senderId == currentUser?.id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() =>
-                                                    handleReactToMessage(
-                                                        message
-                                                    )
-                                                }
-                                                className="text-sm p-1 rounded-full hover:bg-muted"
-                                            >
-                                                😊
-                                            </button>
-
                                             <Menu
                                                 as="div"
                                                 className="relative inline-block text-left"
@@ -166,6 +149,32 @@ const MessageList = ({
                                                     </div>
                                                 </MenuItems>
                                             </Menu>
+                                        </div>
+                                    )}
+                                    {message.messageType === "text" ? (
+                                        <span className="bg-accent p-3 rounded-md max-w-xs break-words">
+                                            {message.content}
+                                        </span>
+                                    ) : (
+                                        <img
+                                            src={message.content}
+                                            alt="Message Image"
+                                            className="border p-2 rounded h-40 md:h-52 object-cover"
+                                        />
+                                    )}
+
+                                    {message.senderId === selectedUser?._id && (
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() =>
+                                                    handleReactToMessage(
+                                                        message
+                                                    )
+                                                }
+                                                className="text-sm p-1 rounded-full hover:bg-muted"
+                                            >
+                                                😊
+                                            </button>
                                         </div>
                                     )}
                                 </div>

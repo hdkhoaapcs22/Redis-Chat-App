@@ -21,9 +21,11 @@ const MessageSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
+    isEditted: Boolean,
+    isDeleted: Boolean,
 });
 
-const MessageModel =  mongoose.models.Message ||
-    mongoose.model("Message", MessageSchema);
-    
+const MessageModel =
+    mongoose.models.Message || mongoose.model("Message", MessageSchema);
+
 export default MessageModel;

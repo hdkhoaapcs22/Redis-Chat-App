@@ -15,6 +15,10 @@ type SendMessageActionArgs = {
     messageType: "text" | "image";
 };
 
+type DeleteMessageActionArgs = {
+    messageId: string;
+};
+
 export async function sendMessageAction({
     content,
     messageType,
@@ -91,7 +95,7 @@ export async function sendMessageAction({
     return { success: true, conversationId, messageId };
 }
 
-export async function getMessage(
+export async function getMessageAction(
     selectedUserId: string,
     currentUserId: string
 ) {
@@ -177,6 +181,22 @@ export async function getOlderMessages({
     return messages.reverse(); // để trả lại theo thứ tự cũ → mới
 }
 
-export async function editMessage({}){
-    
+export async function deleteMessageAction({
+    messageId,
+}: DeleteMessageActionArgs) {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, message: "User not authenticated" };
+        await MessageModel.findOneAndUpdate(
+            { _id: messageId },
+            { isDeleted: true }
+        );
+        await redis.hset(messageId, { isDeleted: true });
+
+        return { success: true };
+    } catch (error) {
+        console.log(error);
+        return { success: false };
+    }
 }

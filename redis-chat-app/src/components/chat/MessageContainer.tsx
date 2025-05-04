@@ -7,7 +7,7 @@ import ChatTopBar from "./ChatTopbar";
 import { useSelectedUser } from "@/store/useSelectedUser";
 import { useQuery } from "@tanstack/react-query";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { getMessage } from "@/actions/message.action";
+import { getMessageAction } from "@/actions/message.action";
 import { Message } from "@/db/types";
 
 const MessageContainer = () => {
@@ -34,7 +34,7 @@ const MessageContainer = () => {
         queryKey: ["messages", selectedUser?._id],
         queryFn: async () => {
             if (selectedUser && currentUser) {
-                return await getMessage(selectedUser?._id, currentUser?.id);
+                return await getMessageAction(selectedUser?._id, currentUser?.id);
             }
         },
         enabled: !!selectedUser && !!currentUser && !isUserLoading,
