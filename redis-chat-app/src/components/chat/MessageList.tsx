@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";
 import { EllipsisVertical } from "lucide-react";
@@ -25,14 +25,18 @@ const MessageList = ({
     currentUser,
     selectedUser,
 }: MessageListProps) => {
+    const [currentMessages, setCurrentMessages] = useState<Message[]>();
     const messageContainerRef = useRef<HTMLDivElement>(null);
-    console.log("current user: ", currentUser);
     // Scroll to the bottom of the message container when new messages are added
     useEffect(() => {
-        if (messageContainerRef.current) {
-            messageContainerRef.current.scrollTop =
-                messageContainerRef.current.scrollHeight;
-        }
+        console.log("MESSAGES: ", messages);
+        setCurrentMessages(messages);
+        setTimeout(() => {
+            if (messageContainerRef.current) {
+                messageContainerRef.current.scrollTop =
+                    messageContainerRef.current.scrollHeight;
+            }
+        }, 0);
     }, [messages]);
 
     const handleEditMessage = (message: Message) => {
@@ -45,6 +49,14 @@ const MessageList = ({
 
     const handleDeleteMessage = (messageId: string) => {
         console.log("Delete:", messageId);
+        setCurrentMessages((prevMessages) =>
+            prevMessages?.map((msg) =>
+                msg._id === messageId ? { ...msg, isDeleted: true } : msg
+            )
+        );
+        // deleteMessage({
+        //     messageId,
+        // });
     };
 
     const handleReactToMessage = (message: Message) => {
@@ -59,9 +71,9 @@ const MessageList = ({
             {/* This component ensure that an animation is applied when items are added to or removed from the list */}
             <AnimatePresence>
                 {!isMessagesLoading &&
-                    messages?.map((message, index) => (
+                    currentMessages?.map((message) => (
                         <motion.div
-                            key={index}
+                            key={message._id}
                             layout
                             initial={{ opacity: 0, scale: 1, y: 50, x: 0 }}
                             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
@@ -96,7 +108,6 @@ const MessageList = ({
                                         />
                                     </Avatar>
                                 )}
-                                {}
                                 <div className="flex items-center max-w-full group gap-1">
                                     {message.senderId == currentUser?.id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -151,16 +162,23 @@ const MessageList = ({
                                             </Menu>
                                         </div>
                                     )}
-                                    {message.messageType === "text" ? (
-                                        <span className="bg-accent p-3 rounded-md max-w-xs break-words">
-                                            {message.content}
-                                        </span>
+
+                                    {!message.isDeleted ? (
+                                        message.messageType === "text" ? (
+                                            <span className="bg-accent p-3 rounded-md max-w-xs break-words">
+                                                {message.content}
+                                            </span>
+                                        ) : (
+                                            <img
+                                                src={message.content}
+                                                alt="Message Image"
+                                                className="border p-2 rounded h-40 md:h-52 object-cover"
+                                            />
+                                        )
                                     ) : (
-                                        <img
-                                            src={message.content}
-                                            alt="Message Image"
-                                            className="border p-2 rounded h-40 md:h-52 object-cover"
-                                        />
+                                        <div className="rounded-md p-5 bg-transparent break-word border-2">
+                                            The message was deleted
+                                        </div>
                                     )}
 
                                     {message.senderId === selectedUser?._id && (

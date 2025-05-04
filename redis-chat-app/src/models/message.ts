@@ -21,8 +21,14 @@ const MessageSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
-    isEditted: Boolean,
-    isDeleted: Boolean,
+    isEditted: {
+        type: Boolean,
+        default: false,
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const MessageModel =

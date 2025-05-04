@@ -74,7 +74,16 @@ export async function sendMessageAction({
         .join("__");
 
     await pusherServer?.trigger(channelName, "newMessage", {
-        message: { senderId, content, timestamp, messageType },
+        message: {
+            _id: messageId,
+            isEditted: false,
+            isDeleted: false,
+            senderId,
+            content,
+            timestamp,
+            messageType,
+            reaction: ""
+        },
     });
 
     await redis.zadd(`${conversationId}:messages`, {
@@ -84,11 +93,14 @@ export async function sendMessageAction({
     await redis.zremrangebyrank(`${conversationId}:messages`, 0, -201);
 
     await redis.hset(messageId, {
+        _id: messageId,
         senderId,
         content,
         timestamp,
         messageType,
         reaction: "",
+        isEditted: false,
+        isDeleted: false,
     });
     await redis.expire(messageId, 60 * 5);
 
@@ -121,11 +133,14 @@ export async function getMessageAction(
                 }).lean<Message>();
                 if (mongoMsg) {
                     return {
+                        _id: mongoMsg._id,
                         senderId: mongoMsg.senderId,
                         content: mongoMsg.content,
                         timestamp: mongoMsg.timestamp,
                         messageType: mongoMsg.messageType,
                         reaction: mongoMsg.reaction,
+                        isEditted: mongoMsg.isEditted,
+                        isDeleted: mongoMsg.isDeleted,
                     };
                 } else {
                     return null; // Không tồn tại trong Redis lẫn MongoDB
@@ -133,16 +148,20 @@ export async function getMessageAction(
             } else {
                 // Redis trả về message hợp lệ
                 return {
+                    _id: result._id,
                     senderId: result.senderId,
                     content: result.content,
                     timestamp: result.timestamp,
                     messageType: result.messageType,
                     reaction: result.reaction,
+                    isEditted: result.isEditted,
+                    isDeleted: result.isDeleted,
                 };
             }
         })
     );
-    return messages.filter((msg) => msg !== null);
+    console.log("messages; ", messages);
+    return messages;
 
     // console.log("results: ", typeof results, results);
 
@@ -192,7 +211,9 @@ export async function deleteMessageAction({
             { _id: messageId },
             { isDeleted: true }
         );
-        await redis.hset(messageId, { isDeleted: true });
+        console.log(messageId);
+        const isMessageExpire = await redis.exists(messageId);
+        if (!isMessageExpire) await redis.hset(messageId, { isDeleted: true });
 
         return { success: true };
     } catch (error) {
