@@ -176,3 +176,7 @@ export async function getOlderMessages({
 
     return messages.reverse(); // để trả lại theo thứ tự cũ → mới
 }
+
+export async function editMessage({}){
+    
+}

@@ -6,7 +6,6 @@ import EmojiPicker from "./EmojiPicker";
 import { Button } from "../ui/button";
 import useSound from "use-sound";
 import { usePreferences } from "@/store/usePreferences";
-import { useSelectedUser } from "@/store/useSelectedUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { sendMessageAction } from "@/actions/message.action";
 import { CldUploadWidget, CloudinaryUploadWidgetInfo } from "next-cloudinary";

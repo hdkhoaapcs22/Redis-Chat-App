@@ -7,6 +7,8 @@ import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
 import { useEffect, useRef } from "react";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";
+import { EllipsisVertical } from "lucide-react";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 
 type MessageListProps = {
     messages: Message[];
@@ -30,6 +32,18 @@ const MessageList = ({
                 messageContainerRef.current.scrollHeight;
         }
     }, [messages]);
+
+    const handleEditMessage = (message: Message) => {
+        console.log("Edit:", message);
+    };
+
+    const handleDeleteMessage = (messageId: string) => {
+        console.log("Delete:", messageId);
+    };
+
+    const handleReactToMessage = (message: Message) => {
+        console.log("React to:", message);
+    };
 
     return (
         <div
@@ -76,17 +90,85 @@ const MessageList = ({
                                         />
                                     </Avatar>
                                 )}
-                                {message.messageType === "text" ? (
-                                    <span className="bg-accent p-3 rounded-md max-w-xs">
-                                        {message.content}
-                                    </span>
-                                ) : (
-                                    <img
-                                        src={message.content}
-                                        alt="Message Image"
-                                        className="border p-2 rounded h-40 md:h-52 object-cover"
-                                    />
-                                )}
+                                <div className="flex items-center max-w-full group">
+                                    {message.messageType === "text" ? (
+                                        <span className="bg-accent p-3 rounded-md max-w-xs break-words">
+                                            {message.content}
+                                        </span>
+                                    ) : (
+                                        <img
+                                            src={message.content}
+                                            alt="Message Image"
+                                            className="border p-2 rounded h-40 md:h-52 object-cover"
+                                        />
+                                    )}
+
+                                    {/* Inline Action Buttons (shown on hover) */}
+                                    {message.senderId === selectedUser?._id && (
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() =>
+                                                    handleReactToMessage(
+                                                        message
+                                                    )
+                                                }
+                                                className="text-sm p-1 rounded-full hover:bg-muted"
+                                            >
+                                                😊
+                                            </button>
+
+                                            <Menu
+                                                as="div"
+                                                className="relative inline-block text-left"
+                                            >
+                                                <MenuButton className="p-1 rounded-full hover:bg-muted">
+                                                    <EllipsisVertical className="w-4 h-4" />
+                                                </MenuButton>
+
+                                                <MenuItems className="absolute right-0 mt-1 w-28 origin-top-right bg-white border rounded shadow-lg z-50">
+                                                    <div className="py-1 text-sm text-gray-700">
+                                                        <MenuItem>
+                                                            {({ active }) => (
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleEditMessage(
+                                                                            message
+                                                                        )
+                                                                    }
+                                                                    className={`w-full text-left px-3 py-2 ${
+                                                                        active
+                                                                            ? "bg-gray-100"
+                                                                            : ""
+                                                                    }`}
+                                                                >
+                                                                    ✏️ Edit
+                                                                </button>
+                                                            )}
+                                                        </MenuItem>
+                                                        <MenuItem>
+                                                            {({ active }) => (
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleDeleteMessage(
+                                                                            message._id
+                                                                        )
+                                                                    }
+                                                                    className={`w-full text-left px-3 py-2 ${
+                                                                        active
+                                                                            ? "bg-gray-100"
+                                                                            : ""
+                                                                    }`}
+                                                                >
+                                                                    🗑️ Remove
+                                                                </button>
+                                                            )}
+                                                        </MenuItem>
+                                                    </div>
+                                                </MenuItems>
+                                            </Menu>
+                                        </div>
+                                    )}
+                                </div>
 
                                 {message.senderId === currentUser?.id && (
                                     <Avatar className="flex justify-center items-center">
