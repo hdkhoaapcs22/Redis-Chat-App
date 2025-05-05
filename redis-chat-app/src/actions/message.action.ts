@@ -16,6 +16,7 @@ type SendMessageActionArgs = {
 };
 
 type DeleteMessageActionArgs = {
+    receiverId: string;
     messageId: string;
 };
 
@@ -68,24 +69,6 @@ export async function sendMessageAction({
 
     await incomingMessage.save();
 
-    const channelName = `${senderId}__${receiverId}`
-        .split("__")
-        .sort()
-        .join("__");
-
-    await pusherServer?.trigger(channelName, "newMessage", {
-        message: {
-            _id: messageId,
-            isEditted: false,
-            isDeleted: false,
-            senderId,
-            content,
-            timestamp,
-            messageType,
-            reaction: ""
-        },
-    });
-
     await redis.zadd(`${conversationId}:messages`, {
         score: timestamp,
         member: JSON.stringify(messageId),
@@ -102,7 +85,25 @@ export async function sendMessageAction({
         isEditted: false,
         isDeleted: false,
     });
-    await redis.expire(messageId, 60 * 5);
+    await redis.expire(messageId, 60 * 15);
+
+    const channelName = `${senderId}__${receiverId}`
+        .split("__")
+        .sort()
+        .join("__");
+
+    await pusherServer?.trigger(channelName, "newMessage", {
+        message: {
+            _id: messageId,
+            isEditted: false,
+            isDeleted: false,
+            senderId,
+            content,
+            timestamp,
+            messageType,
+            reaction: "",
+        },
+    });
 
     return { success: true, conversationId, messageId };
 }
@@ -201,9 +202,11 @@ export async function getOlderMessages({
 }
 
 export async function deleteMessageAction({
+    receiverId,
     messageId,
 }: DeleteMessageActionArgs) {
     try {
+        console.log("deleteMessageAction");
         const { getUser } = getKindeServerSession();
         const user = await getUser();
         if (!user) return { success: false, message: "User not authenticated" };
@@ -212,8 +215,17 @@ export async function deleteMessageAction({
             { isDeleted: true }
         );
         console.log(messageId);
-        const isMessageExpire = await redis.exists(messageId);
-        if (!isMessageExpire) await redis.hset(messageId, { isDeleted: true });
+        const isMessageNotExpire = await redis.exists(messageId);
+        if (isMessageNotExpire)
+            await redis.hset(messageId, { isDeleted: true });
+
+        const tmp = `${user.id}__${receiverId}`.split("__").sort().join("__");
+
+        const channelName = "deleteMessage__" + tmp;
+
+        await pusherServer?.trigger(channelName, "deleteMessage", {
+            _id: messageId,
+        });
 
         return { success: true };
     } catch (error) {

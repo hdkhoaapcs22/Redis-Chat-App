@@ -3,41 +3,32 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarImage } from "../ui/avatar";
-import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
-import { useEffect, useRef, useState } from "react";
+import { KindeUser, useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";
 import { EllipsisVertical } from "lucide-react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { useMutation } from "@tanstack/react-query";
-import { deleteMessageAction } from "@/actions/message.action";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+    deleteMessageAction,
+    getMessageAction,
+} from "@/actions/message.action";
+import { pusherClient } from "@/lib/pusher";
 
 type MessageListProps = {
-    messages: Message[];
-    isMessagesLoading: boolean;
     currentUser: KindeUser;
     selectedUser: User;
+    isUserLoading: boolean;
 };
 
 const MessageList = ({
-    messages,
-    isMessagesLoading,
-    currentUser,
     selectedUser,
+    currentUser,
+    isUserLoading,
 }: MessageListProps) => {
-    const [currentMessages, setCurrentMessages] = useState<Message[]>();
     const messageContainerRef = useRef<HTMLDivElement>(null);
     // Scroll to the bottom of the message container when new messages are added
-    useEffect(() => {
-        console.log("MESSAGES: ", messages);
-        setCurrentMessages(messages);
-        setTimeout(() => {
-            if (messageContainerRef.current) {
-                messageContainerRef.current.scrollTop =
-                    messageContainerRef.current.scrollHeight;
-            }
-        }, 0);
-    }, [messages]);
 
     const handleEditMessage = (message: Message) => {
         console.log("Edit:", message);
@@ -45,23 +36,110 @@ const MessageList = ({
 
     const { mutate: deleteMessage, isPending } = useMutation({
         mutationFn: deleteMessageAction,
+        // onMutate runs before mutation request is sent.
+        onMutate: async ({ messageId }) => {
+            // Stops ongoing queries for messages for the selected user to avoid overwrite
+            await queryClient.cancelQueries({
+                queryKey: ["messages", selectedUser._id],
+            });
+
+            // Stores the current message list in case the mutation fails (for rollback).
+            const previousMessages = queryClient.getQueryData<Message[]>([
+                "messages",
+                selectedUser._id,
+            ]);
+
+            // mark deleted
+            queryClient.setQueryData(
+                ["messages", selectedUser._id],
+                (old: Message[] | undefined) =>
+                    old?.map((msg) =>
+                        msg._id === messageId
+                            ? { ...msg, isDeleted: true }
+                            : msg
+                    ) || []
+            );
+
+            return { previousMessages };
+        },
+        // This runs if the mutation fails.
+        onError: (err, _vars, context) => {
+            if (context?.previousMessages) {
+                queryClient.setQueryData(
+                    ["messages", selectedUser._id],
+                    context.previousMessages
+                );
+            }
+        },
+        //This runs after the mutation completes, whether it failed or succeeded.
+        onSettled: () => {
+            queryClient.invalidateQueries({
+                queryKey: ["messages", selectedUser._id],
+            });
+        },
     });
 
     const handleDeleteMessage = (messageId: string) => {
         console.log("Delete:", messageId);
-        setCurrentMessages((prevMessages) =>
-            prevMessages?.map((msg) =>
-                msg._id === messageId ? { ...msg, isDeleted: true } : msg
-            )
-        );
-        // deleteMessage({
-        //     messageId,
-        // });
+        deleteMessage({
+            receiverId: selectedUser._id,
+            messageId,
+        });
     };
+
+    const { data: messages, isLoading: isMessagesLoading } = useQuery({
+        queryKey: ["messages", selectedUser?._id],
+        queryFn: async () => {
+            if (selectedUser && currentUser) {
+                return await getMessageAction(
+                    selectedUser?._id,
+                    currentUser?.id
+                );
+            }
+        },
+        enabled: !!selectedUser && !!currentUser && !isUserLoading,
+    });
+
+    const channelName = useMemo(() => {
+        return `${currentUser.id}__${selectedUser._id}`
+            .split("__")
+            .sort()
+            .join("__");
+    }, [currentUser.id, selectedUser._id]);
+
+    const queryClient = useQueryClient();
+    useEffect(() => {
+        const channel = pusherClient.subscribe("deleteMessage__" + channelName);
+
+        const handleDeletedMessage = (data: { _id: string }) => {
+            queryClient.setQueryData<Message[]>(
+                ["messages", selectedUser._id],
+                (oldMessages) => {
+                    if (!oldMessages) return [];
+                    return oldMessages.map((msg) =>
+                        msg._id === data._id ? { ...msg, isDeleted: true } : msg
+                    );
+                }
+            );
+        };
+        channel.bind("deleteMessage", handleDeletedMessage);
+
+        return () => {
+            channel.unbind("deleteMessage", handleDeletedMessage);
+            pusherClient.unsubscribe("deleteMessage__" + channelName);
+        };
+    }, [channelName]);
 
     const handleReactToMessage = (message: Message) => {
         console.log("React to:", message);
     };
+
+    useEffect(() => {
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTop =
+                messageContainerRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     return (
         <div
@@ -71,9 +149,10 @@ const MessageList = ({
             {/* This component ensure that an animation is applied when items are added to or removed from the list */}
             <AnimatePresence>
                 {!isMessagesLoading &&
-                    currentMessages?.map((message) => (
+                    messages &&
+                    messages.map((message, index) => (
                         <motion.div
-                            key={message._id}
+                            key={index}
                             layout
                             initial={{ opacity: 0, scale: 1, y: 50, x: 0 }}
                             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
@@ -93,13 +172,13 @@ const MessageList = ({
                             }}
                             className={cn(
                                 "flex flex-col gap-2 p-4 whitespace-pre-wrap",
-                                message.senderId === currentUser?.id
+                                message?.senderId === currentUser?.id
                                     ? "items-end"
                                     : "items-start"
                             )}
                         >
                             <div className="flex gap-3 items-center">
-                                {message.senderId === selectedUser?._id && (
+                                {message?.senderId === selectedUser?._id && (
                                     <Avatar className="flex justify-center items-center">
                                         <AvatarImage
                                             src={selectedUser?.image}
@@ -109,7 +188,7 @@ const MessageList = ({
                                     </Avatar>
                                 )}
                                 <div className="flex items-center max-w-full group gap-1">
-                                    {message.senderId == currentUser?.id && (
+                                    {message?.senderId == currentUser?.id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Menu
                                                 as="div"
@@ -142,6 +221,9 @@ const MessageList = ({
                                                         <MenuItem>
                                                             {({ active }) => (
                                                                 <button
+                                                                    disabled={
+                                                                        isPending
+                                                                    }
                                                                     onClick={() =>
                                                                         handleDeleteMessage(
                                                                             message._id
@@ -163,14 +245,14 @@ const MessageList = ({
                                         </div>
                                     )}
 
-                                    {!message.isDeleted ? (
-                                        message.messageType === "text" ? (
+                                    {!message?.isDeleted ? (
+                                        message?.messageType === "text" ? (
                                             <span className="bg-accent p-3 rounded-md max-w-xs break-words">
-                                                {message.content}
+                                                {message?.content}
                                             </span>
                                         ) : (
                                             <img
-                                                src={message.content}
+                                                src={message?.content}
                                                 alt="Message Image"
                                                 className="border p-2 rounded h-40 md:h-52 object-cover"
                                             />
@@ -181,7 +263,8 @@ const MessageList = ({
                                         </div>
                                     )}
 
-                                    {message.senderId === selectedUser?._id && (
+                                    {message?.senderId ===
+                                        selectedUser?._id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() =>
@@ -197,7 +280,7 @@ const MessageList = ({
                                     )}
                                 </div>
 
-                                {message.senderId === currentUser?.id && (
+                                {message?.senderId === currentUser?.id && (
                                     <Avatar className="flex justify-center items-center">
                                         <AvatarImage
                                             src={
@@ -213,7 +296,7 @@ const MessageList = ({
                         </motion.div>
                     ))}
 
-                {isMessagesLoading && (
+                {(isMessagesLoading || !messages) && (
                     <>
                         <MessageSkeleton />
                         <MessageSkeleton />

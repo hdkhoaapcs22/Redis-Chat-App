@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Textarea } from "../ui/textarea";
 import { ImageIcon, Loader, SendHorizontal, ThumbsUp } from "lucide-react";
@@ -22,16 +22,12 @@ import { Message, User } from "@/db/types";
 import { pusherClient } from "@/lib/pusher";
 
 type ChatBottomBar = {
-    isMessagesLoading: boolean;
     selectedUser: User;
     currentUser: KindeUser;
 };
 
-const ChatBottomBar = ({
-    isMessagesLoading,
-    selectedUser,
-    currentUser,
-}: ChatBottomBar) => {
+const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
+    console.log("ChatBottomBar is created");
     const [message, setMessage] = useState("");
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const [imageUrl, setImageUrl] = useState("");
@@ -85,11 +81,11 @@ const ChatBottomBar = ({
         });
     };
 
+    const channelName = useMemo(() => {
+        return [currentUser?.id, selectedUser?._id].sort().join("__");
+    }, [currentUser?.id, selectedUser?._id]);
+
     useEffect(() => {
-        const channelName = `${currentUser?.id}__${selectedUser?._id}`
-            .split("__")
-            .sort()
-            .join("__");
         const channel = pusherClient?.subscribe(channelName);
 
         const handleNewMessage = (data: { message: Message }) => {
@@ -97,6 +93,9 @@ const ChatBottomBar = ({
                 ["messages", selectedUser?._id],
                 (oldMessages: Message[]) => [...oldMessages, data.message]
             );
+
+            console.log("senderId:", data.message.senderId);
+            console.log("currentUser.id:", currentUser?.id);
 
             if (soundEnabled && data.message.senderId !== currentUser?.id) {
                 console.log("Notification");
@@ -110,10 +109,10 @@ const ChatBottomBar = ({
             channel?.unbind("newMessage", handleNewMessage);
             pusherClient?.unsubscribe(channelName);
         };
-    }, [currentUser?.id, selectedUser?._id]);
+    }, [channelName]);
 
     return (
-        <div className='"p-2 flex justify-between w-full items-center gap-2'>
+        <div className="p-2 flex justify-between w-full items-center gap-2">
             {!message.trim() && (
                 <CldUploadWidget
                     signatureEndpoint={"/api/sign-cloudinary-params"}
@@ -153,8 +152,8 @@ const ChatBottomBar = ({
 
                     <DialogFooter>
                         <Button
-                            disabled={isMessagesLoading}
                             type="submit"
+                            disabled={isPending}
                             onClick={() => {
                                 sendMessage({
                                     content: imageUrl,
@@ -189,11 +188,11 @@ const ChatBottomBar = ({
                     <Textarea
                         autoComplete="off"
                         placeholder="Aa"
+                        disabled={isPending}
                         rows={1}
                         value={message}
                         ref={textAreaRef}
                         onKeyDown={handleKeyDown}
-                        disabled={isMessagesLoading}
                         onChange={(e) => {
                             setMessage(e.target.value);
                             playRandomKeyStrokeSound();
@@ -218,6 +217,7 @@ const ChatBottomBar = ({
                         size={"icon"}
                         key="send"
                         onClick={handleSendMessage}
+                        disabled={isPending}
                     >
                         <SendHorizontal
                             size={20}
@@ -230,7 +230,7 @@ const ChatBottomBar = ({
                         variant={"ghost"}
                         size={"icon"}
                         onClick={handleThumbsUp}
-                        disabled={isMessagesLoading}
+                        disabled={isPending}
                     >
                         {!isPending && (
                             <ThumbsUp
@@ -248,4 +248,4 @@ const ChatBottomBar = ({
     );
 };
 
-export default ChatBottomBar;
+export default memo(ChatBottomBar);
