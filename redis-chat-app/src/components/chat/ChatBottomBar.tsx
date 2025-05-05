@@ -37,8 +37,10 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
     const [playSound2] = useSound("/sounds/keystroke2.mp3");
     const [playSound3] = useSound("/sounds/keystroke3.mp3");
     const [playSound4] = useSound("/sounds/keystroke4.mp3");
-    const [playNotificationSound] = useSound("/sounds/notification.mp3");
-
+    const playNotificationSound = () => {
+        const audio = new Audio("/sounds/notification.mp3");
+        audio.play();
+    };
     const { soundEnabled } = usePreferences();
 
     const playSoundFunctions = [playSound1, playSound2, playSound3, playSound4];
@@ -93,10 +95,6 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
                 ["messages", selectedUser?._id],
                 (oldMessages: Message[]) => [...oldMessages, data.message]
             );
-
-            console.log("senderId:", data.message.senderId);
-            console.log("currentUser.id:", currentUser?.id);
-
             if (soundEnabled && data.message.senderId !== currentUser?.id) {
                 console.log("Notification");
                 playNotificationSound();
@@ -109,7 +107,7 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
             channel?.unbind("newMessage", handleNewMessage);
             pusherClient?.unsubscribe(channelName);
         };
-    }, [channelName]);
+    }, [channelName, soundEnabled]);
 
     return (
         <div className="p-2 flex justify-between w-full items-center gap-2">
