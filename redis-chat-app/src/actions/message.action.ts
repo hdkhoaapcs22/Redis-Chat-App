@@ -20,6 +20,12 @@ type DeleteMessageActionArgs = {
     messageId: string;
 };
 
+type EditMessageActionArgs = {
+    messageId: string;
+    newContent: string;
+    receiverId: string;
+};
+
 export async function sendMessageAction({
     content,
     messageType,
@@ -206,7 +212,6 @@ export async function deleteMessageAction({
     messageId,
 }: DeleteMessageActionArgs) {
     try {
-        console.log("deleteMessageAction");
         const { getUser } = getKindeServerSession();
         const user = await getUser();
         if (!user) return { success: false, message: "User not authenticated" };
@@ -224,6 +229,41 @@ export async function deleteMessageAction({
         const channelName = "deleteMessage__" + tmp;
 
         await pusherServer?.trigger(channelName, "deleteMessage", {
+            _id: messageId,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.log(error);
+        return { success: false };
+    }
+}
+
+export async function editMessageAction({
+    messageId,
+    newContent,
+    receiverId,
+}: EditMessageActionArgs) {
+    try {
+        const { getUser } = getKindeServerSession();
+        const user = await getUser();
+        if (!user) return { success: false, message: "User not authenticated" };
+
+        const isMessageNotExpired = await redis.exists(messageId);
+        if (isMessageNotExpired)
+            await redis.hset(messageId, {
+                content: newContent,
+                isEditted: true,
+            });
+
+        await MessageModel.findOneAndUpdate(
+            { _id: messageId },
+            { content: newContent, isEditted: true }
+        );
+        const tmp = `${user.id}__${receiverId}`.split("__").sort().join("__");
+
+        const channelName = "editMessage__" + tmp;
+        await pusherServer?.trigger(channelName, "editMessage", {
             _id: messageId,
         });
 
