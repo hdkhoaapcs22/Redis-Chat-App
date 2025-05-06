@@ -167,14 +167,7 @@ export async function getMessageAction(
             }
         })
     );
-    console.log("messages; ", messages);
     return messages;
-
-    // console.log("results: ", typeof results, results);
-
-    // Lọc các message null (không còn trong cả Redis lẫn MongoDB)
-    // return messages.filter((msg) => msg !== null);
-    // return [];
 }
 
 export async function getOlderMessages({
