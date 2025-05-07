@@ -15,6 +15,7 @@ import { LogOut } from "lucide-react";
 import { useSelectedUser } from "@/store/useSelectedUser";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useSocket } from "@/context/SocketContext";
 
 type SidebarProps = {
     isCollapsed: boolean;
@@ -29,6 +30,8 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
 
     const { user } = useKindeBrowserClient();
 
+    const { onlineUsers } = useSocket();
+    console.log("Sidebar is created");
     return (
         <div className="group relative flex flex-col h-full gap-4 p-2 data-[collapsed=true]:p-2  max-h-full overflow-auto bg-background">
             {!isCollapsed && (
@@ -50,6 +53,7 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
                                             soundEnabled && playClickSound();
                                             setSelectedUser(user);
                                         }}
+                                        className="relative"
                                     >
                                         <Avatar className="my-1 flex justify-center items-center">
                                             <AvatarImage
@@ -67,6 +71,12 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
                                         <span className="sr-only">
                                             {user.name}
                                         </span>
+                                        {onlineUsers?.some(
+                                            (onlineUser) =>
+                                                user._id == onlineUser.userId
+                                        ) && (
+                                            <div className="absolute w-2.5 h-2.5 bg-green-500 rounded-4xl" />
+                                        )}
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent
@@ -83,7 +93,7 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
                             variant={"grey"}
                             size="xl"
                             className={cn(
-                                "w-full justify-start gap-4 my-1",
+                                "relative w-full justify-start gap-4 my-1",
                                 selectedUser?.email === user.email &&
                                     "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white shrink"
                             )}
@@ -103,6 +113,11 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
                             <div className="flex flex-col max-w-28">
                                 <span>{user.name}</span>
                             </div>
+                            {onlineUsers?.some(
+                                (onlineUser) => user._id == onlineUser.userId
+                            ) && (
+                                <div className="absolute w-3.5 h-3.5 bg-blue-500 rounded-4xl left-0 top-0 animate-pulse" />
+                            )}
                         </Button>
                     )
                 )}

@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import TanStackProvider from "@/components/providers/TanStackProvider";
 import SocketProvider from "@/providers/SocketProvider";
 
-
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
@@ -37,10 +36,9 @@ export default function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <TanStackProvider>
-                        <SocketProvider>{children}</SocketProvider>
-                        {children}
-                    </TanStackProvider>
+                    <SocketProvider>
+                        <TanStackProvider>{children}</TanStackProvider>
+                    </SocketProvider>
                 </ThemeProvider>
             </body>
         </html>

@@ -1,9 +1,11 @@
 import { Avatar, AvatarImage } from "../ui/avatar";
-import { Info, X } from "lucide-react";
+import { Info, Video, X } from "lucide-react";
 import { useSelectedUser } from "@/store/useSelectedUser";
+import { useSocket } from "@/context/SocketContext";
 
 const ChatTopBarComponent = () => {
     const { selectedUser, setSelectedUser } = useSelectedUser();
+    const { onlineUsers, handleCall } = useSocket();
     return (
         <div className="w-full h-20 flex p-4 justify-between items-center border-b">
             <div className="flex items-center gap-2">
@@ -18,6 +20,17 @@ const ChatTopBarComponent = () => {
             </div>
 
             <div className="flex gap-2">
+                <Video
+                    className="text-muted-foreground cursor-pointer hover:text-primary"
+                    onClick={() => {
+                        const calledUser = onlineUsers?.filter(
+                            (onlineUser) =>
+                                onlineUser.userId === selectedUser?._id
+                        );
+                        console.log("CALLED USER: ", calledUser);
+                        handleCall(calledUser![0]);
+                    }}
+                />
                 <Info className="text-muted-foreground cursor-pointer hover:text-primary" />
                 <X
                     className="text-muted-foreground cursor-pointer hover:text-primary"

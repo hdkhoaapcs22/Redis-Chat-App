@@ -1,6 +1,8 @@
 // app/page.tsx (or Home component)
+import CallNotification from "@/components/CallNotification";
 import ChatWrapper from "@/components/ChatWrapper";
 import PreferencesTab from "@/components/PreferencesTab";
+import VideoCall from "@/components/VideoCall";
 import { User } from "@/db/types";
 import connectDb from "@/lib/db";
 import UserModel from "@/models/user";
@@ -23,7 +25,7 @@ export default async function Home() {
     const users = await getUsers();
 
     return (
-        <main className="flex h-screen flex-col items-center justify-center p-4 md:px-24 py-32 gap-4">
+        <main className="relative flex h-screen flex-col items-center justify-center p-4 md:px-24 py-32 gap-4">
             <PreferencesTab />
 
             {/* dotted bg */}
@@ -36,6 +38,8 @@ export default async function Home() {
             <div className="z-10 border rounded-lg max-w-5xl w-full min-h-[85vh] text-sm lg:flex">
                 <ChatWrapper users={users} />
             </div>
+            <CallNotification />
+            <VideoCall />
         </main>
     );
 }
