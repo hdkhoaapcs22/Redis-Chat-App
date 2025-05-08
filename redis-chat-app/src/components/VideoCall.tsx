@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 
 const VideoCall = () => {
-    const { localStream } = useSocket();
+    const { localStream, peer, ongoingCall, handleHangup, isCallEnded } =
+        useSocket();
     const [isVidCon, setIsVidOn] = useState<boolean>(true);
     const [isMicOn, setIsMicOn] = useState<boolean>(true);
 
@@ -32,14 +33,34 @@ const VideoCall = () => {
         setIsVidOn(audioTrack.enabled);
     }, [localStream]);
 
+    const isOnCall = localStream && peer && ongoingCall ? true : false;
+
+    if (isCallEnded) {
+        return (
+            <div className="mt-5 text-rose-500 text-center"> Call Ended</div>
+        );
+    }
+
+    if (!localStream && !peer) return;
+    console.log("PEER in VIDEOCALL", peer);
+    console.log("PEER.STREAM in VIDEOCALL", peer?.stream);
     return (
-        <div>
+        <div className="mt-4 relative">
             <div>
+                {/** the local stream of caller */}
                 {localStream && (
                     <VideoContainer
                         stream={localStream}
                         isLocalStream={true}
-                        isOnCall={false}
+                        isOnCall={isOnCall}
+                    />
+                )}
+                {/** share the video for the other person */}
+                {peer && peer.stream && (
+                    <VideoContainer
+                        stream={peer.stream}
+                        isLocalStream={false}
+                        isOnCall={isOnCall}
                     />
                 )}
             </div>
@@ -48,8 +69,15 @@ const VideoCall = () => {
                     {isMicOn ? <MicOff size={28} /> : <Mic size={28} />}
                 </button>
                 <button
-                    className="px-4 py-2 bg-rose-500 text-white rounded mx-4"
-                    onClick={() => {}}
+                    className="px-4 py-2 cursor-pointer bg-rose-500 text-white rounded mx-4"
+                    onClick={() => {
+                            handleHangup({
+                                ongoingCall: ongoingCall
+                                    ? ongoingCall
+                                    : undefined,
+                                isEmitHangup: true,
+                            });
+                    }}
                 >
                     End call
                 </button>

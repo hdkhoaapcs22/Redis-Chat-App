@@ -27,7 +27,6 @@ const ChatTopBarComponent = () => {
                             (onlineUser) =>
                                 onlineUser.userId === selectedUser?._id
                         );
-                        console.log("CALLED USER: ", calledUser);
                         handleCall(calledUser![0]);
                     }}
                 />

@@ -2,6 +2,8 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import onCall from "./src/socket-events/onCall.js";
+import onWebrtcSignal from "./src/socket-events/onWebrtcSignal.js";
+import onHangup from "./src/socket-events/onHangup.js";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -35,7 +37,7 @@ app.prepare().then(() => {
 
     // remove disconnect user from onlineUsers list
     socket.on("disconnect", () => {
-      onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id),
+      onlineUsers = onlineUsers.filter(user => user.socketId !== socket.id);
 
       // send active users
       io.emit("getUsers", onlineUsers)
@@ -43,6 +45,8 @@ app.prepare().then(() => {
 
     // call event
     socket.on('call', onCall);
+    socket.on('webrtcSignal', onWebrtcSignal);
+    socket.on('hangup', onHangup)
   });
 
   httpServer

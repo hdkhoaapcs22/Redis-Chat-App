@@ -5,7 +5,7 @@ import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
 import { Phone, PhoneMissed } from "lucide-react";
 
 const CallNotification = () => {
-    const { ongoingCall, handleJoinCall } = useSocket();
+    const { ongoingCall, handleJoinCall, handleHangup } = useSocket();
 
     if (!ongoingCall?.isRinging) return;
 
@@ -30,10 +30,23 @@ const CallNotification = () => {
                 </div>
                 <p className="test-sm mb-2 text-gray-600">Incoming Call</p>
                 <div className="flex gap-8">
-                    <button onClick = {() => handleJoinCall(ongoingCall)} className="w-12 bg-green-500 rounded-full flex items-center justify-center text-white">
+                    <button
+                        onClick={() => handleJoinCall(ongoingCall)}
+                        className="w-12 bg-green-500 rounded-full flex items-center justify-center text-white"
+                    >
                         <Phone size={24} />
                     </button>
-                    <button className="w-12 bg-red-500 rounded-full flex items-center justify-center text-white">
+                    <button
+                        onClick={() => {
+                                handleHangup({
+                                    ongoingCall: ongoingCall
+                                        ? ongoingCall
+                                        : undefined,
+                                    isEmitHangup: true,
+                                });
+                        }}
+                        className="w-12 bg-red-500 rounded-full flex items-center justify-center text-white cursor-pointer"
+                    >
                         <PhoneMissed size={24} />
                     </button>
                 </div>
