@@ -3,11 +3,30 @@
 import { useSocket } from "@/context/SocketContext";
 import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
 import { Phone, PhoneMissed } from "lucide-react";
+import { useEffect } from "react";
+import useSound from "use-sound";
 
 const CallNotification = () => {
     const { ongoingCall, handleJoinCall, handleHangup } = useSocket();
 
-    if (!ongoingCall?.isRinging) return;
+    const [play, { stop }] = useSound("/sounds/call-notification.mp3", {
+        loop: true,
+        volume: 1,
+        preload: true,
+    });
+
+    // Play sound when ringing starts, stop when it's not ringing
+    useEffect(() => {
+        if (ongoingCall?.isRinging) {
+            play();
+        } else {
+            stop();
+        }
+
+        return () => stop(); // Cleanup on unmount
+    }, [ongoingCall?.isRinging, play, stop]);
+
+    if (!ongoingCall?.isRinging) return null;
 
     return (
         <div className="absolute z-50 bg-slate-400 w-screen h-screen top-0 bottom-0 left-0 flex items-center justify-center">
@@ -28,22 +47,24 @@ const CallNotification = () => {
                         {ongoingCall.participants.caller.profile.family_name}
                     </h3>
                 </div>
-                <p className="test-sm mb-2 text-gray-600">Incoming Call</p>
+                <p className="text-sm mb-2 text-gray-600">Incoming Call</p>
                 <div className="flex gap-8">
                     <button
-                        onClick={() => handleJoinCall(ongoingCall)}
+                        onClick={() => {
+                            stop(); // Stop sound
+                            handleJoinCall(ongoingCall);
+                        }}
                         className="w-12 bg-green-500 rounded-full flex items-center justify-center text-white"
                     >
                         <Phone size={24} />
                     </button>
                     <button
                         onClick={() => {
-                                handleHangup({
-                                    ongoingCall: ongoingCall
-                                        ? ongoingCall
-                                        : undefined,
-                                    isEmitHangup: true,
-                                });
+                            stop(); // Stop sound
+                            handleHangup({
+                                ongoingCall: ongoingCall ?? undefined,
+                                isEmitHangup: true,
+                            });
                         }}
                         className="w-12 bg-red-500 rounded-full flex items-center justify-center text-white cursor-pointer"
                     >

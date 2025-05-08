@@ -4,8 +4,10 @@ import { Button } from "./ui/button";
 import { useTheme } from "next-themes";
 import { usePreferences } from "@/store/usePreferences";
 import { useSound } from "use-sound";
+import React from "react";
 
-const PreferencesTab = () => {
+const PreferencesTab = React.memo(() => {
+    console.log("PreferencesTab")
     const { setTheme } = useTheme();
 
     const { soundEnabled, setSoundEnabled } = usePreferences();
@@ -51,5 +53,6 @@ const PreferencesTab = () => {
             </Button>
         </div>
     );
-};
+});
+
 export default PreferencesTab;

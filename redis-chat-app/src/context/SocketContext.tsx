@@ -329,7 +329,7 @@ export const SocketContextProvider = ({
         socket.on("webrtcSignal", completePeerConnection);
         socket.on("hangup", handleHangup);
         return () => {
-            socket.off("incomningCall", onIncomingCall);
+            socket.off("incomingCall", onIncomingCall);
             socket.off("webrtcSignal", completePeerConnection);
             socket.off("hangup", handleHangup);
         };

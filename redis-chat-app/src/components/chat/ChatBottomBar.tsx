@@ -246,4 +246,4 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
     );
 };
 
-export default memo(ChatBottomBar);
+export default ChatBottomBar;

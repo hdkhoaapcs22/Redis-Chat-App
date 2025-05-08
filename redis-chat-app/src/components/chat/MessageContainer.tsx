@@ -7,7 +7,7 @@ import { useSelectedUser } from "@/store/useSelectedUser";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import ChatTopBarComponent from "./ChatTopBarComponent";
 
-const MessageContainer = () => {
+const MessageContainer = React.memo(() => {
     const { selectedUser, setSelectedUser } = useSelectedUser();
     const { user: currentUser, isLoading: isUserLoading } =
         useKindeBrowserClient();
@@ -43,6 +43,6 @@ const MessageContainer = () => {
             </div>
         </div>
     );
-};
+});
 
 export default MessageContainer;

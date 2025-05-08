@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarImage } from "../ui/avatar";
 import { KindeUser, useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";
 import { EllipsisVertical } from "lucide-react";
@@ -16,7 +16,6 @@ import {
     getMessageAction,
 } from "@/actions/message.action";
 import { pusherClient } from "@/lib/pusher";
-import { Textarea } from "../ui/textarea";
 
 type MessageListProps = {
     currentUser: KindeUser;
@@ -29,6 +28,7 @@ const MessageList = ({
     currentUser,
     isUserLoading,
 }: MessageListProps) => {
+    console.log("MessageList");
     const messageContainerRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
 
@@ -108,13 +108,16 @@ const MessageList = ({
         },
     });
 
-    const handleDeleteMessage = (messageId: string) => {
-        console.log("Delete:", messageId);
-        deleteMessage({
-            receiverId: selectedUser._id,
-            messageId,
-        });
-    };
+    const handleDeleteMessage = useCallback(
+        (messageId: string) => {
+            console.log("Delete:", messageId);
+            deleteMessage({
+                receiverId: selectedUser._id,
+                messageId,
+            });
+        },
+        [selectedUser._id]
+    );
 
     // handle bind delete message
     useEffect(() => {
@@ -194,19 +197,25 @@ const MessageList = ({
         setEditingContent(message.content);
     };
 
-    const saveEditedMessage = (message: Message) => {
-        console.log("save Edited Message 1");
-        if (editingMessageId !== null && message.content != editingContent) {
-            console.log("save Edited Message 2");
-            EditMessage({
-                messageId: editingMessageId,
-                receiverId: selectedUser._id,
-                newContent: editingContent,
-            });
-        }
-        setEditingMessageId(null);
-        setEditingContent("");
-    };
+    const saveEditedMessage = useCallback(
+        (message: Message) => {
+            console.log("save Edited Message 1");
+            if (
+                editingMessageId !== null &&
+                message.content != editingContent
+            ) {
+                console.log("save Edited Message 2");
+                EditMessage({
+                    messageId: editingMessageId,
+                    receiverId: selectedUser._id,
+                    newContent: editingContent,
+                });
+            }
+            setEditingMessageId(null);
+            setEditingContent("");
+        },
+        [editingMessageId, editingContent, selectedUser._id]
+    );
 
     const cancelEditing = () => {
         setEditingMessageId(null);
