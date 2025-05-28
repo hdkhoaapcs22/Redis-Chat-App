@@ -3,7 +3,6 @@
 import { redis } from "@/lib/db";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { pusherServer } from "@/lib/pusher";
-import { connectDb } from "@/lib/db";
 
 import ConversationModel from "@/models/conversation";
 import MessageModel from "@/models/message";
@@ -26,6 +25,12 @@ type EditMessageActionArgs = {
     receiverId: string;
 };
 
+type ReactMessageActionArgs = {
+    messageId: string;
+    receiverId: string;
+    emoji: string;
+};
+
 export async function sendMessageAction({
     content,
     messageType,
@@ -36,15 +41,15 @@ export async function sendMessageAction({
     if (!user) return { success: false, message: "User not authenticated" };
 
     const senderId = user.id;
+    const timestamp = Date.now();
 
     const conversationId = `conversation:${[senderId, receiverId]
         .sort()
         .join(":")}`;
 
-    const messageId = `message:${Date.now()}:${Math.random()
+    const messageId = `message:${timestamp}:${Math.random()
         .toString(36)
         .substring(2, 9)}`;
-    const timestamp = Date.now();
 
     const conversationExist = await ConversationModel.findOne({
         _id: conversationId,
@@ -75,23 +80,26 @@ export async function sendMessageAction({
 
     await incomingMessage.save();
 
-    await redis.zadd(`${conversationId}:messages`, {
-        score: timestamp,
-        member: JSON.stringify(messageId),
-    });
-    await redis.zremrangebyrank(`${conversationId}:messages`, 0, -201);
+    const tasks = [
+        redis.zadd(`${conversationId}:messages`, {
+            score: timestamp,
+            member: JSON.stringify(messageId),
+        }),
+        redis.zremrangebyrank(`${conversationId}:messages`, 0, -201),
+        redis.hset(messageId, {
+            _id: messageId,
+            senderId,
+            content,
+            timestamp,
+            messageType,
+            reaction: "",
+            isEditted: false,
+            isDeleted: false,
+        }),
+        redis.expire(messageId, 60 * 60),
+    ];
 
-    await redis.hset(messageId, {
-        _id: messageId,
-        senderId,
-        content,
-        timestamp,
-        messageType,
-        reaction: "",
-        isEditted: false,
-        isDeleted: false,
-    });
-    await redis.expire(messageId, 60 * 15);
+    await Promise.all(tasks);
 
     const channelName = `${senderId}__${receiverId}`
         .split("__")
@@ -264,5 +272,41 @@ export async function editMessageAction({
     } catch (error) {
         console.log(error);
         return { success: false };
+    }
+}
+
+export async function reactMessageAction({
+    messageId,
+    receiverId,
+    emoji,
+}: ReactMessageActionArgs) {
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    if (!user) return { success: false, message: "User not authenticated" };
+
+    try {
+        const isMessageNotExpired = await redis.exists(messageId);
+        if (isMessageNotExpired) {
+            await redis.hset(messageId, {
+                reaction: emoji,
+            });
+        }
+
+        await MessageModel.findOneAndUpdate(
+            { _id: messageId },
+            { $set: { reaction: emoji } }
+        );
+
+        const tmp = `${user.id}__${receiverId}`.split("__").sort().join("__");
+
+        const channelName = "reactMessage__" + tmp;
+        await pusherServer?.trigger(channelName, "reactMessage", {
+            _id: messageId,
+            emoji,
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.log("reactMessageAction: ", error);
     }
 }

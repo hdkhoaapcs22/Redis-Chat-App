@@ -14,8 +14,11 @@ import {
     deleteMessageAction,
     editMessageAction,
     getMessageAction,
+    reactMessageAction,
 } from "@/actions/message.action";
 import { pusherClient } from "@/lib/pusher";
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
 
 type MessageListProps = {
     currentUser: KindeUser;
@@ -31,11 +34,15 @@ const MessageList = ({
     console.log("MessageList");
     const messageContainerRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
+    const [showPicker, setShowPicker] = useState<boolean>(false);
+    const [messageIdReact, setMessageIdReact] = useState<string>("");
+    const previousMessageCountRef = useRef<number>(0);
 
     // retrieve message section
     const { data: messages, isLoading: isMessagesLoading } = useQuery({
         queryKey: ["messages", selectedUser?._id],
         queryFn: async () => {
+            console.log("");
             if (selectedUser && currentUser) {
                 return await getMessageAction(
                     selectedUser?._id,
@@ -56,11 +63,20 @@ const MessageList = ({
 
     // scroll section
     useEffect(() => {
-        if (messageContainerRef.current) {
+        if (!messages || !messageContainerRef.current) return;
+
+        const isNewMessage = messages.length > previousMessageCountRef.current;
+
+        const lastMessage = messages[messages.length - 1];
+        const isSentByCurrentUser = lastMessage?.senderId === currentUser.id;
+
+        if (isNewMessage || isSentByCurrentUser) {
             messageContainerRef.current.scrollTop =
                 messageContainerRef.current.scrollHeight;
         }
-    }, [messages]);
+
+        previousMessageCountRef.current = messages.length;
+    }, [messages, currentUser.id]);
 
     // delete section
     const { mutate: deleteMessage, isPending } = useMutation({
@@ -217,10 +233,10 @@ const MessageList = ({
         [editingMessageId, editingContent, selectedUser._id]
     );
 
-    const cancelEditing = () => {
+    const cancelEditing = useCallback(() => {
         setEditingMessageId(null);
         setEditingContent("");
-    };
+    }, []);
 
     useEffect(() => {
         const channel = pusherClient.subscribe("editMessage__" + channelName);
@@ -254,9 +270,80 @@ const MessageList = ({
     }, [channelName]);
 
     // react section
-    const handleReactToMessage = (message: Message) => {
-        console.log("React to:", message);
+    const { mutate: ReactMessage } = useMutation({
+        mutationFn: reactMessageAction,
+        onMutate: async ({ messageId, emoji }) => {
+            // Stops ongoing queries for messages for the selected user to avoid overwrite
+            await queryClient.cancelQueries({
+                queryKey: ["messages", selectedUser._id],
+            });
+
+            // Stores the current message list in case the mutation fails (for rollback).
+            const previousMessages = queryClient.getQueryData<Message[]>([
+                "messages",
+                selectedUser._id,
+            ]);
+
+            queryClient.setQueryData(
+                ["messages", selectedUser._id],
+                (old: Message[] | undefined) =>
+                    old?.map((msg) =>
+                        msg._id === messageId
+                            ? { ...msg, reaction: emoji }
+                            : msg
+                    ) || []
+            );
+
+            return { previousMessages };
+        },
+        // This runs if the mutation fails.
+        onError: (err, _vars, context) => {
+            if (context?.previousMessages) {
+                queryClient.setQueryData(
+                    ["messages", selectedUser._id],
+                    context.previousMessages
+                );
+            }
+        },
+        //This runs after the mutation completes, whether it failed or succeeded.
+        onSettled: () => {
+            queryClient.invalidateQueries({
+                queryKey: ["messages", selectedUser._id],
+            });
+        },
+    });
+
+    const handleReactToMessage = (messageId: string, emoji: string) => {
+        ReactMessage({
+            messageId,
+            receiverId: selectedUser._id,
+            emoji,
+        });
     };
+
+    useEffect(() => {
+        const channel = pusherClient.subscribe("reactMessage__" + channelName);
+
+        const handleReactMessage = (data: { _id: string; emoji: string }) => {
+            queryClient.setQueryData<Message[]>(
+                ["messages", selectedUser._id],
+                (oldMessages) => {
+                    if (!oldMessages) return [];
+                    return oldMessages.map((msg) =>
+                        msg._id === data._id
+                            ? { ...msg, reaction: data.emoji }
+                            : msg
+                    );
+                }
+            );
+        };
+        channel.bind("reactMessage", handleReactMessage);
+
+        return () => {
+            channel.unbind("reactMessage", handleReactMessage);
+            pusherClient.unsubscribe("reactMessage__" + channelName);
+        };
+    }, [channelName]);
 
     return (
         <div
@@ -306,7 +393,7 @@ const MessageList = ({
                                     </Avatar>
                                 )}
 
-                                <div className="flex items-center max-w-full group gap-1">
+                                <div className="flex items-center max-w-full group">
                                     {message?.senderId == currentUser?.id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Menu
@@ -371,26 +458,34 @@ const MessageList = ({
                                         </div>
                                     )}
 
-                                    {!message?.isDeleted ? (
-                                        message?._id != editingMessageId &&
-                                        (message?.messageType === "text" ? (
-                                            <div className="relative px-3 py-4">
-                                                <span className=" bg-accent p-3 rounded-md max-w-xs break-words">
-                                                    {message?.content}
-                                                    {message.isEditted && (
-                                                        <span className="absolute left-1 top-0 text-[10px] text-blue-500">
-                                                            Edited
-                                                        </span>
-                                                    )}
-                                                </span>
+                                    {message && !message?.isDeleted ? (
+                                        message?._id != editingMessageId && (
+                                            <div className="relative px-2 py-4">
+                                                {message.messageType ===
+                                                "text" ? (
+                                                    <span className=" bg-accent p-3 rounded-md max-w-xs break-words">
+                                                        {message?.content}
+                                                        {message.isEditted && (
+                                                            <span className="absolute left-1 top-0 text-[10px] text-blue-500">
+                                                                Edited
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                ) : (
+                                                    <img
+                                                        src={message?.content}
+                                                        alt="Message Image"
+                                                        className="relative border p-2 rounded h-40 md:h-52 object-cover"
+                                                    />
+                                                )}
+
+                                                {message.reaction !== "" && (
+                                                    <span className="absolute bottom-0 right-0.5 text-xs">
+                                                        {message.reaction}
+                                                    </span>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <img
-                                                src={message?.content}
-                                                alt="Message Image"
-                                                className="border p-2 rounded h-40 md:h-52 object-cover"
-                                            />
-                                        ))
+                                        )
                                     ) : (
                                         <div className="rounded-md p-5 bg-transparent break-word border-2">
                                             The message was deleted
@@ -401,17 +496,43 @@ const MessageList = ({
                                         selectedUser?._id && (
                                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={() =>
-                                                    handleReactToMessage(
-                                                        message
-                                                    )
-                                                }
+                                                onClick={() => {
+                                                    setShowPicker(
+                                                        (prev) => !prev
+                                                    );
+                                                    setMessageIdReact(
+                                                        message._id
+                                                    );
+                                                }}
                                                 className="text-sm p-1 rounded-full hover:bg-muted"
                                             >
                                                 😊
                                             </button>
                                         </div>
                                     )}
+
+                                    {showPicker &&
+                                        message?.senderId ===
+                                            selectedUser?._id &&
+                                        message._id === messageIdReact && (
+                                            <div className="">
+                                                <Picker
+                                                    data={data}
+                                                    onEmojiSelect={(emoji: {
+                                                        id: string;
+                                                        native: string;
+                                                    }) => {
+                                                        handleReactToMessage(
+                                                            message._id,
+                                                            emoji.native
+                                                        ); // send selected emoji
+                                                        setShowPicker(false); // hide after selection
+                                                    }}
+                                                    previewPosition="none"
+                                                    maxFrequentRows={1}
+                                                />
+                                            </div>
+                                        )}
                                 </div>
 
                                 {/* edit area*/}

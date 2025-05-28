@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Textarea } from "../ui/textarea";
 import { ImageIcon, Loader, SendHorizontal, ThumbsUp } from "lucide-react";
@@ -48,14 +48,14 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         mutationFn: sendMessageAction,
     });
 
-    const playRandomKeyStrokeSound = () => {
+    const playRandomKeyStrokeSound = useCallback(() => {
         const randomIndex = Math.floor(
             Math.random() * playSoundFunctions.length
         );
         soundEnabled && playSoundFunctions[randomIndex]();
-    };
+    }, []);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = useCallback(() => {
         if (!message.trim()) return;
         sendMessage({
             content: message,
@@ -64,7 +64,7 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         });
         setMessage("");
         textAreaRef.current?.focus();
-    };
+    }, [selectedUser._id, message]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -75,13 +75,23 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         }
     };
 
-    const handleThumbsUp = () => {
+    const handleThumbsUp = useCallback(() => {
         sendMessage({
             content: "👍",
             messageType: "text",
             receiverId: selectedUser?._id!,
         });
-    };
+    }, [selectedUser._id]);
+
+    const handleSendImageMessage = useCallback(() => {
+        if (!imageUrl) return;
+        sendMessage({
+            content: imageUrl,
+            messageType: "image",
+            receiverId: selectedUser?._id!,
+        });
+        setImageUrl("");
+    }, [imageUrl, selectedUser._id]);
 
     const channelName = useMemo(() => {
         return [currentUser?.id, selectedUser?._id].sort().join("__");
@@ -126,46 +136,47 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
                         return (
                             <ImageIcon
                                 size={20}
-                                onClick={() => open()}
-                                className="cursor-pointer text-muted-foreground"
+                                onClick={() => {
+                                    if (!isPending) open();
+                                }}
+                                className={`cursor-pointer ${
+                                    isPending
+                                        ? "text-gray-400 cursor-not-allowed"
+                                        : "text-muted-foreground"
+                                }`}
                             />
                         );
                     }}
                 </CldUploadWidget>
             )}
 
-            <Dialog open={!!imageUrl}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Image Preview</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex justify-center items-center relative h-96 w-full mx-auto">
-                        <Image
-                            src={imageUrl}
-                            alt="Image Preview"
-                            fill
-                            className="object-contain"
-                        />
-                    </div>
+            {imageUrl !== "" && (
+                <Dialog open={!!imageUrl}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Image Preview</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex justify-center items-center relative h-96 w-full mx-auto">
+                            <Image
+                                src={imageUrl}
+                                alt="Image Preview"
+                                fill
+                                className="object-contain"
+                            />
+                        </div>
 
-                    <DialogFooter>
-                        <Button
-                            type="submit"
-                            disabled={isPending}
-                            onClick={() => {
-                                sendMessage({
-                                    content: imageUrl,
-                                    messageType: "image",
-                                    receiverId: selectedUser?._id!,
-                                });
-                                setImageUrl("");
-                            }}
-                        >
-                            Send
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button
+                                type="submit"
+                                disabled={isPending}
+                                onClick={handleSendImageMessage}
+                            >
+                                Send
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             <AnimatePresence>
                 <motion.div

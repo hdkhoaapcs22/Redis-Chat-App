@@ -16,13 +16,14 @@ import { useSelectedUser } from "@/store/useSelectedUser";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useSocket } from "@/context/SocketContext";
+import React from "react";
 
 type SidebarProps = {
     isCollapsed: boolean;
     users: User[];
 };
 
-const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
+const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
     const [playClickSound] = useSound("/sounds/mouse-click.mp3");
     const { soundEnabled } = usePreferences();
 
@@ -151,5 +152,6 @@ const Sidebar = ({ isCollapsed, users }: SidebarProps) => {
             </div>
         </div>
     );
-};
+});
+
 export default Sidebar;
