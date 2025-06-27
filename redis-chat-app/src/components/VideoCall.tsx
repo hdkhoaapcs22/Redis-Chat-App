@@ -30,7 +30,7 @@ const VideoCall = () => {
         if (!localStream) return;
         const audioTrack = localStream.getAudioTracks()[0];
         audioTrack.enabled = !audioTrack.enabled;
-        setIsVidOn(audioTrack.enabled);
+        setIsMicOn(audioTrack.enabled);
     }, [localStream]);
 
     const isOnCall = localStream && peer && ongoingCall ? true : false;
@@ -66,7 +66,7 @@ const VideoCall = () => {
             </div>
             <div className="mt-8 flex items-center justify-center">
                 <button onClick={toggleMic}>
-                    {isMicOn ? <MicOff size={28} /> : <Mic size={28} />}
+                    {!isMicOn ? <MicOff size={28} /> : <Mic size={28} />}
                 </button>
                 <button
                     className="px-4 py-2 cursor-pointer bg-rose-500 text-white rounded mx-4"
@@ -82,7 +82,7 @@ const VideoCall = () => {
                     End call
                 </button>
                 <button onClick={toggleCamera}>
-                    {isVidCon ? <VideoOff size={28} /> : <Video size={28} />}
+                    {!isVidCon ? <VideoOff size={28} /> : <Video size={28} />}
                 </button>
             </div>
         </div>

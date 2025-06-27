@@ -30,7 +30,7 @@ const MessageContainerComponent = () => {
 
     return (
         <div className="flex flex-col justify-between w-full h-full">
-            <ChatTopBarComponent />
+            <ChatTopBarComponent  />
             <div className="w-full overflow-y-auto overflow-x-auto h-full flex flex-col">
                 <MessageList
                     selectedUser={selectedUser}
