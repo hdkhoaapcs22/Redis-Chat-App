@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarImage } from "../ui/avatar";
-import { KindeUser, useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MessageSkeleton from "@/skeleton/MessageSkeleton";
 import { Message, User } from "@/db/types";

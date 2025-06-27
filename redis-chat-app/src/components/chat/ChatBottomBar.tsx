@@ -17,7 +17,7 @@ import {
     DialogTitle,
 } from "../ui/dialog";
 import Image from "next/image";
-import { KindeUser, useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { KindeUser } from "@kinde-oss/kinde-auth-nextjs";
 import { Message, User } from "@/db/types";
 import { pusherClient } from "@/lib/pusher";
 
@@ -60,7 +60,7 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         sendMessage({
             content: message,
             messageType: "text",
-            receiverId: selectedUser?._id!,
+            receiverId: selectedUser?._id,
         });
         setMessage("");
         textAreaRef.current?.focus();
