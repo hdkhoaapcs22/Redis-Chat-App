@@ -10,6 +10,10 @@ interface EmojiPickerProps {
     onChange: (emoji: string) => void;
 }
 
+interface EmojiMartEmoji {
+    native: string;
+}
+
 const EmojiPicker = ({ onChange }: EmojiPickerProps) => {
     const { theme } = useTheme();
 
@@ -24,10 +28,11 @@ const EmojiPicker = ({ onChange }: EmojiPickerProps) => {
                     data={data}
                     maxFrequentRows={1}
                     theme={theme === "dark" ? "dark" : "light"}
-                    onEmojiSelect={(emoji: any) => onChange(emoji.native)}
+                    onEmojiSelect={(emoji: EmojiMartEmoji) => onChange(emoji.native)}
                 />
             </PopoverContent>
         </Popover>
     );
 };
+
 export default EmojiPicker;

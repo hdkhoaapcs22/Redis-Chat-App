@@ -131,8 +131,15 @@ export async function getMessageAction(
         `conversation:${[selectedUserId, currentUserId].sort().join(":")}` +
         ":messages";
 
+    // Kiểm tra xem conversationId có tồn tại trong Redis không
     const existConversation = await redis.exists(conversationId);
-    if (!existConversation) return [];
+    if (!existConversation){
+        // Nếu ko tồn tại, check trong MongoDB
+        const conversation = await ConversationModel.findOne({
+            _id: conversationId,
+        });
+        if (!conversation || !conversation.messageIds) return [];
+    }
 
     const messageIds = await redis.zrange(conversationId, 0, -1);
 

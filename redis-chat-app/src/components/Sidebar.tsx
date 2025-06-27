@@ -23,18 +23,18 @@ type SidebarProps = {
     users: User[];
 };
 
-const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
+const SidebarComponent = ({ isCollapsed, users }: SidebarProps) => {
     const [playClickSound] = useSound("/sounds/mouse-click.mp3");
     const { soundEnabled } = usePreferences();
 
     const { selectedUser, setSelectedUser } = useSelectedUser();
-
     const { user } = useKindeBrowserClient();
-
     const { onlineUsers } = useSocket();
+
     console.log("Sidebar is created");
+
     return (
-        <div className="group relative flex flex-col h-full gap-4 p-2 data-[collapsed=true]:p-2  max-h-full overflow-auto bg-background">
+        <div className="group relative flex flex-col h-full gap-4 p-2 data-[collapsed=true]:p-2 max-h-full overflow-auto bg-background">
             {!isCollapsed && (
                 <div className="flex justify-between p-2 items-center">
                     <div className="flex gap-2 items-center text-2xl">
@@ -51,17 +51,14 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                                 <TooltipTrigger asChild>
                                     <div
                                         onClick={() => {
-                                            soundEnabled && playClickSound();
+                                            if (soundEnabled) playClickSound();
                                             setSelectedUser(user);
                                         }}
                                         className="relative"
                                     >
                                         <Avatar className="my-1 flex justify-center items-center">
                                             <AvatarImage
-                                                src={
-                                                    user.image ||
-                                                    "/user-placeholder.png"
-                                                }
+                                                src={user.image || "/user-placeholder.png"}
                                                 alt="User Image"
                                                 className="border-2 border-white rounded-full w-10 h-10"
                                             />
@@ -73,17 +70,13 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                                             {user.name}
                                         </span>
                                         {onlineUsers?.some(
-                                            (onlineUser) =>
-                                                user._id == onlineUser.userId
+                                            (onlineUser) => user._id === onlineUser.userId
                                         ) && (
                                             <div className="absolute w-2.5 h-2.5 bg-green-500 rounded-4xl" />
                                         )}
                                     </div>
                                 </TooltipTrigger>
-                                <TooltipContent
-                                    side="right"
-                                    className="flex items-center gap-4"
-                                >
+                                <TooltipContent side="right" className="flex items-center gap-4">
                                     {user.name}
                                 </TooltipContent>
                             </Tooltip>
@@ -99,7 +92,7 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                                     "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white shrink"
                             )}
                             onClick={() => {
-                                soundEnabled && playClickSound();
+                                if (soundEnabled) playClickSound();
                                 setSelectedUser(user);
                             }}
                         >
@@ -115,7 +108,7 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                                 <span>{user.name}</span>
                             </div>
                             {onlineUsers?.some(
-                                (onlineUser) => user._id == onlineUser.userId
+                                (onlineUser) => user._id === onlineUser.userId
                             ) && (
                                 <div className="absolute w-3.5 h-3.5 bg-blue-500 rounded-4xl left-0 top-0 animate-pulse" />
                             )}
@@ -123,6 +116,7 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                     )
                 )}
             </ScrollArea>
+
             {/* Logout section */}
             <div className="mt-auto">
                 <div className="flex justify-between items-center gap-2 md:px-6 py-2">
@@ -130,11 +124,9 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                         <div className="hidden md:flex gap-2 items-center">
                             <Avatar className="flex justify-center items-center">
                                 <AvatarImage
-                                    src={
-                                        user?.picture || "/user-placeholder.png"
-                                    }
+                                    src={user?.picture || "/user-placeholder.png"}
                                     alt="avatar"
-                                    referrerPolicy="no-referrer" // when we ot an image from Google accounts, for some reasons, it doesn't render it sometimes, so we need this.
+                                    referrerPolicy="no-referrer"
                                     className="w-8 h-8 border-2 border-white rounded-full"
                                 />
                             </Avatar>
@@ -145,13 +137,17 @@ const Sidebar = React.memo(({ isCollapsed, users }: SidebarProps) => {
                     )}
                     <div className="flex">
                         <LogoutLink>
-                            <LogOut size={26} cursor={"pointer"}></LogOut>
+                            <LogOut size={26} cursor={"pointer"} />
                         </LogoutLink>
                     </div>
                 </div>
             </div>
         </div>
     );
-});
+};
+
+const Sidebar = React.memo(SidebarComponent);
+Sidebar.displayName = "Sidebar";
 
 export default Sidebar;
+

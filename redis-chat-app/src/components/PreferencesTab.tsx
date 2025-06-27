@@ -6,8 +6,8 @@ import { usePreferences } from "@/store/usePreferences";
 import { useSound } from "use-sound";
 import React from "react";
 
-const PreferencesTab = React.memo(() => {
-    console.log("PreferencesTab")
+const PreferencesTabComponent = () => {
+    console.log("PreferencesTab");
     const { setTheme } = useTheme();
 
     const { soundEnabled, setSoundEnabled } = usePreferences();
@@ -22,7 +22,7 @@ const PreferencesTab = React.memo(() => {
                 size={"icon"}
                 onClick={() => {
                     setTheme("light");
-                    soundEnabled && playMouseClick();
+                    if (soundEnabled) playMouseClick();
                 }}
             >
                 <SunIcon className="size-[1.2rem] text-muted-foreground" />
@@ -32,7 +32,7 @@ const PreferencesTab = React.memo(() => {
                 size={"icon"}
                 onClick={() => {
                     setTheme("dark");
-                    soundEnabled && playMouseClick();
+                    if (soundEnabled) playMouseClick();
                 }}
             >
                 <MoonIcon className="size-[1.2rem] text-muted-foreground" />
@@ -42,7 +42,11 @@ const PreferencesTab = React.memo(() => {
                 size={"icon"}
                 onClick={() => {
                     setSoundEnabled(!soundEnabled);
-                    soundEnabled ? playSoundOff() : playSoundOn();
+                    if (soundEnabled) {
+                        playSoundOff();
+                    } else {
+                        playSoundOn();
+                    }
                 }}
             >
                 {soundEnabled ? (
@@ -53,6 +57,10 @@ const PreferencesTab = React.memo(() => {
             </Button>
         </div>
     );
-});
+};
+
+// ✅ Fix: assign display name
+const PreferencesTab = React.memo(PreferencesTabComponent);
+PreferencesTab.displayName = "PreferencesTab";
 
 export default PreferencesTab;
