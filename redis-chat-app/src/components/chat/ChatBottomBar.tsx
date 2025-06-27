@@ -79,7 +79,7 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         sendMessage({
             content: "👍",
             messageType: "text",
-            receiverId: selectedUser?._id!,
+            receiverId: selectedUser?._id,
         });
     }, [selectedUser._id]);
 
@@ -88,14 +88,15 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         sendMessage({
             content: imageUrl,
             messageType: "image",
-            receiverId: selectedUser?._id!,
+            receiverId: selectedUser?._id,
         });
         setImageUrl("");
     }, [imageUrl, selectedUser._id]);
 
     const channelName = useMemo(() => {
-        return [currentUser?.id, selectedUser?._id].sort().join("__");
-    }, [currentUser?.id, selectedUser?._id]);
+    if (!currentUser?.id || !selectedUser?._id) return "";
+    return [currentUser.id, selectedUser._id].sort().join("__");
+}, [currentUser?.id, selectedUser?._id]);
 
     useEffect(() => {
         const channel = pusherClient?.subscribe(channelName);

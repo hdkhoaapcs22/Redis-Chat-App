@@ -24,6 +24,10 @@ type iSocketContext = {
     }) => void;
 };
 
+interface CustomPeer extends Peer.Instance {
+    _pc: RTCPeerConnection;
+}
+
 export const SocketContext = createContext<iSocketContext | null>(null);
 
 export const SocketContextProvider = ({
@@ -169,7 +173,7 @@ export const SocketContextProvider = ({
             peer.on("error", console.error);
             peer.on("close", () => handleHangup({}));
 
-            const rtcPeerConnection: RTCPeerConnection = (peer as any)._pc;
+            const rtcPeerConnection: RTCPeerConnection = (peer as CustomPeer)._pc;
             rtcPeerConnection.oniceconnectionstatechange = async () => {
                 if (
                     rtcPeerConnection.iceConnectionState === "disconnected" ||
