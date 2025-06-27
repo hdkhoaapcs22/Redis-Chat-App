@@ -52,7 +52,9 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
         const randomIndex = Math.floor(
             Math.random() * playSoundFunctions.length
         );
-        soundEnabled && playSoundFunctions[randomIndex]();
+        if (soundEnabled) {
+            playSoundFunctions[randomIndex]();
+        }
     }, []);
 
     const handleSendMessage = useCallback(() => {
@@ -94,9 +96,9 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
     }, [imageUrl, selectedUser._id]);
 
     const channelName = useMemo(() => {
-    if (!currentUser?.id || !selectedUser?._id) return "";
-    return [currentUser.id, selectedUser._id].sort().join("__");
-}, [currentUser?.id, selectedUser?._id]);
+        if (!currentUser?.id || !selectedUser?._id) return "";
+        return [currentUser.id, selectedUser._id].sort().join("__");
+    }, [currentUser?.id, selectedUser?._id]);
 
     useEffect(() => {
         const channel = pusherClient?.subscribe(channelName);
@@ -140,11 +142,10 @@ const ChatBottomBar = ({ selectedUser, currentUser }: ChatBottomBar) => {
                                 onClick={() => {
                                     if (!isPending) open();
                                 }}
-                                className={`cursor-pointer ${
-                                    isPending
+                                className={`cursor-pointer ${isPending
                                         ? "text-gray-400 cursor-not-allowed"
                                         : "text-muted-foreground"
-                                }`}
+                                    }`}
                             />
                         );
                     }}
